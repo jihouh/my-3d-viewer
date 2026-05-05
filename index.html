@@ -1,159 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JH Professional 3D Viewer</title>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
-    
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #121212; color: white; overflow: hidden; }
-        .container { display: flex; flex-direction: column; height: 100vh; }
-        #viewer-container { flex-grow: 1; position: relative; background: radial-gradient(#333, #000); }
-        model-viewer { width: 100%; height: 100%; }
-
-        /* Floating UI */
-        .overlay-ui { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(20, 20, 20, 0.9); padding: 15px; border-radius: 12px; border: 1px solid #444; width: 220px; backdrop-filter: blur(10px); }
-        .overlay-ui h4 { margin: 0 0 12px 0; color: #007bff; letter-spacing: 1px; text-transform: uppercase; font-size: 12px; }
-        .layer-toggle { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; cursor: pointer; justify-content: space-between; }
-        
-        /* Tooltip style for measurements */
-        .measurement-info { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: #007bff; padding: 12px 24px; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; z-index: 20; }
-        
-        .btn { background: #007bff; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: 600; transition: 0.2s; }
-        .btn:hover { background: #0056b3; }
-        .btn-secondary { background: #333; border: 1px solid #444; margin-top: 5px;}
-        
-        #status-bar { position: absolute; bottom: 10px; right: 10px; font-size: 11px; color: #888; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div id="viewer-container">
-        <!-- Control Panel -->
-        <div class="overlay-ui">
-            <h4>Visibility Control</h4>
-            <label class="layer-toggle">Ceiling <input type="checkbox" checked id="toggle-Ceiling"></label>
-            <label class="layer-toggle">Walls <input type="checkbox" checked id="toggle-Walls"></label>
-            <label class="layer-toggle">Furniture <input type="checkbox" checked id="toggle-Furniture"></label>
-            
-            <hr style="border:0; border-top:1px solid #333; margin: 15px 0;">
-            
-            <h4>Tools</h4>
-            <button class="btn" id="upload-trigger">Upload New Model</button>
-            <button class="btn btn-secondary" id="admin-trigger">Admin Gallery</button>
-            <input type="file" id="file-input" accept=".glb,.gltf" style="display:none">
-        </div>
-
-        <!-- Measurement Label -->
-        <div id="measure-label" class="measurement-info">
-            📏 Distance: <span id="dist-val">0</span>m
-        </div>
-
-        <div id="status-bar">Shift + Click to measure points</div>
-
-        <model-viewer id="main-viewer" 
-            camera-controls 
-            ar 
-            shadow-intensity="1" 
-            src="" 
-            alt="3D Building Model">
-        </model-viewer>
-    </div>
-</div>
+<!-- Add this to your .overlay-ui section -->
+<label class="layer-toggle">Others <input type="checkbox" checked id="toggle-Others"></label>
 
 <script type="module">
-    // --- IMPORT FIREBASE ---
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js";
-    import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-storage.js";
-    import { getDatabase, ref as dRef, push } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
+    // ... (Keep your existing Firebase imports and config)
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCIVKrIzXA0ZQH3NZFtHsErCioAPOvipWk",
-        authDomain: "jh-3d-viewer.firebaseapp.com",
-        databaseURL: "https://jh-3d-viewer-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "jh-3d-viewer",
-        storageBucket: "jh-3d-viewer.firebasestorage.app",
-        messagingSenderId: "591931878519",
-        appId: "1:591931878519:web:e2efab3a2d9a92b36c2a72"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const storage = getStorage(app);
-    const db = getDatabase(app);
     const modelViewer = document.querySelector('#main-viewer');
+    
+    // We'll store references to help with the "Others" logic
+    const primaryLayers = ['Ceiling', 'Walls', 'Furniture'];
 
-    // --- VISIBILITY LOGIC (Fixed for Modules) ---
     const setupToggles = () => {
-        ['Ceiling', 'Walls', 'Furniture'].forEach(layerName => {
-            document.getElementById(`toggle-${layerName}`).addEventListener('change', (e) => {
+        // Add "Others" to the loop
+        [...primaryLayers, 'Others'].forEach(layerName => {
+            const checkbox = document.getElementById(`toggle-${layerName}`);
+            
+            checkbox.addEventListener('change', (e) => {
                 const isVisible = e.target.checked;
-                
-                // Professional Method: Accessing the Scene Graph safely
                 const model = modelViewer.model;
                 if (!model) return;
 
-                // Loop through internal nodes
-                // Note: Names must match exactly what you named groups in SketchUp
                 for (const node of model.nodes) {
-                    if (node.name.includes(layerName)) {
-                        node.visible = isVisible;
+                    if (layerName === 'Others') {
+                        // "Others" logic: Hide if it DOES NOT match any primary layer name
+                        const isPrimary = primaryLayers.some(p => node.name.includes(p));
+                        if (!isPrimary) {
+                            node.visible = isVisible;
+                        }
+                    } else {
+                        // Standard logic: Hide if name matches
+                        if (node.name.includes(layerName)) {
+                            node.visible = isVisible;
+                        }
                     }
                 }
             });
         });
     };
 
-    // --- UPLOAD LOGIC ---
-    document.getElementById('upload-trigger').onclick = () => document.getElementById('file-input').click();
-    document.getElementById('file-input').onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        try {
-            const storageRef = sRef(storage, `models/${Date.now()}_${file.name}`);
-            const snapshot = await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(snapshot.ref);
-            
-            await push(dRef(db, 'models'), { name: file.name, url: url });
-            modelViewer.src = url;
-            alert("Upload Complete!");
-        } catch (err) {
-            alert("Upload failed. Check Firebase CORS/Rules.");
-        }
-    };
-
-    // --- MEASUREMENT LOGIC ---
-    let points = [];
-    modelViewer.addEventListener('click', (event) => {
-        if (!event.shiftKey) return; 
-
-        const hit = modelViewer.positionAndNormalFromPoint(event.clientX, event.clientY);
-        if (hit) {
-            points.push(hit.position);
-            
-            if (points.length === 2) {
-                const d = Math.sqrt(
-                    Math.pow(points[0].x - points[1].x, 2) +
-                    Math.pow(points[0].y - points[1].y, 2) +
-                    Math.pow(points[0].z - points[1].z, 2)
-                );
-                
-                const label = document.getElementById('measure-label');
-                label.style.display = 'block';
-                document.getElementById('dist-val').innerText = d.toFixed(2);
-                
-                // Auto-hide after 5 seconds
-                setTimeout(() => { label.style.display = 'none'; }, 5000);
-                points = []; 
-            }
-        }
-    });
-
-    // Initialize
+    // Trigger this when the model finishes loading
     modelViewer.addEventListener('load', setupToggles);
 </script>
-
-</body>
-</html>
