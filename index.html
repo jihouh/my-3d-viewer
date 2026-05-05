@@ -87,7 +87,7 @@
     import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-storage.js";
     import { getDatabase, ref as dRef, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
 
-    const firebaseConfig = '{
+    const firebaseConfig = {
   apiKey: "AIzaSyCIVKrIzXA0ZQH3NZFtHsErCioAPOvipWk",
   authDomain: "jh-3d-viewer.firebaseapp.com",
   databaseURL: "https://jh-3d-viewer-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -96,7 +96,7 @@
   messagingSenderId: "591931878519",
   appId: "1:591931878519:web:e717b388dc7412946c2a72",
   measurementId: "G-HFQFKMQLFZ"
-}';
+};
         const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
     const db = getDatabase(app);
