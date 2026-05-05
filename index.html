@@ -3,132 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Design Showcase | Self-Service Viewer</title>
+    <title>Advanced 3D Viewer</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     
     <style>
-        :root { --glass: rgba(255, 255, 255, 0.08); --accent: #ffffff; }
-        body { font-family: 'Inter', sans-serif; margin: 0; background: #0a0a0a; color: white; display: flex; height: 100vh; overflow: hidden; }
+        :root { --primary: #007bff; --bg: #121212; --panel: #1e1e1e; --border: #333; }
+        body { font-family: sans-serif; margin: 0; background: var(--bg); color: white; display: flex; height: 100vh; overflow: hidden; }
 
-        /* SLEEK SIDEBAR - Glassmorphism style */
+        /* SIDEBAR PANEL */
         #sidebar { 
-            width: 320px; background: var(--glass); backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(255,255,255,0.1); padding: 30px; 
-            display: flex; flex-direction: column; z-index: 10;
+            width: 300px; background: var(--panel); border-right: 1px solid var(--border); 
+            display: flex; flex-direction: column; overflow-y: auto; padding: 20px; box-sizing: border-box;
         }
 
-        #viewer-container { flex-grow: 1; position: relative; background: #000; }
+        #viewer-container { flex-grow: 1; position: relative; background: radial-gradient(#2c2c2c, #000); }
+        model-viewer { width: 100%; height: 100%; }
+
+        /* UI ELEMENTS */
+        h3 { font-size: 14px; text-transform: uppercase; color: var(--primary); margin: 20px 0 10px; letter-spacing: 1px; }
+        .control-item { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         
-        model-viewer { 
-            width: 100%; height: 100%; 
-            --progress-bar-color: #fff;
+        .file-btn { 
+            background: var(--primary); color: white; border: none; padding: 12px; 
+            border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px;
         }
 
-        /* PREMIUM BUTTONS */
-        .file-label {
-            border: 1px solid #fff; padding: 12px; text-align: center;
-            border-radius: 2px; font-size: 11px; letter-spacing: 2px;
-            cursor: pointer; transition: all 0.3s; margin-bottom: 30px;
-        }
-        .file-label:hover { background: #fff; color: #000; }
+        select, input[type="range"] { background: #333; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; width: 120px; }
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 
-        .view-btn {
-            background: none; border: 1px solid rgba(255,255,255,0.2); color: #ccc;
-            padding: 10px; margin-bottom: 8px; text-align: left; cursor: pointer;
-            font-size: 12px; transition: 0.2s;
-        }
-        .view-btn:hover { border-color: #fff; color: #fff; }
-
-        h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin: 25px 0 10px; }
-        
-        .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 12px; }
-        input[type="range"] { width: 100px; accent-color: #fff; }
-
-        #file-input { display: none; }
+        /* GRID/HUD */
+        .hud { position: absolute; bottom: 15px; left: 15px; font-size: 12px; color: #666; pointer-events: none; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <label class="file-label" for="file-input">IMPORT PROJECT</label>
-    <input type="file" id="file-input" accept=".glb">
+    <input type="file" id="file-input" accept=".glb" style="display:none">
+    <button class="file-btn" onclick="document.getElementById('file-input').click()">SELECT MODEL</button>
+    
+    <div id="status" style="font-size: 11px; color: #888; text-align: center;">No model loaded</div>
 
-    <h4>Scene Views</h4>
-    <button class="view-btn" onclick="setCamera('0deg 75deg 105%', '0m 0m 0m')">Perspective View</button>
-    <button class="view-btn" onclick="setCamera('0deg 0deg 100%', '0m 0m 0m')">Top Down</button>
-    <button class="view-btn" onclick="setCamera('90deg 90deg 100%', '0m 0m 0m')">Side Elevation</button>
+    <h3>Display</h3>
+    <div class="control-item">Auto-Rotate <input type="checkbox" id="check-rotate"></div>
+    <div class="control-item">Show Skybox <input type="checkbox" id="check-skybox"></div>
+    
+    <h3>Visibility Layers</h3>
+    <div class="control-item">Ceiling <input type="checkbox" checked id="toggle-Ceiling"></div>
+    <div class="control-item">Walls <input type="checkbox" checked id="toggle-Walls"></div>
+    <div class="control-item">Furniture <input type="checkbox" checked id="toggle-Furniture"></div>
+    <div class="control-item">Others <input type="checkbox" checked id="toggle-Others"></div>
 
-    <h4>Visibility</h4>
-    <div class="control-row">Ceiling <input type="checkbox" checked id="toggle-Ceiling"></div>
-    <div class="control-row">Walls <input type="checkbox" checked id="toggle-Walls"></div>
-    <div class="control-row">Furniture <input type="checkbox" checked id="toggle-Furniture"></div>
-
-    <h4>Environment</h4>
-    <div class="control-row">Exposure <input type="range" id="input-exposure" min="0" max="2" step="0.05" value="1"></div>
-    <div class="control-row">Shadows <input type="range" id="input-shadow" min="0" max="2" step="0.05" value="1"></div>
-    <div class="control-row">Auto-Rotate <input type="checkbox" id="check-rotate"></div>
+    <h3>Lighting</h3>
+    <div class="control-item">Exposure <input type="range" id="input-exposure" min="0" max="2" step="0.05" value="1"></div>
+    <div class="control-item">Shadows <input type="range" id="input-shadow" min="0" max="2" step="0.05" value="1"></div>
+    <div class="control-item">Environment
+        <select id="select-env">
+            <option value="neutral">Neutral</option>
+            <option value="legacy">Legacy</option>
+            <option value="soft">Soft</option>
+        </select>
+    </div>
 </div>
 
 <div id="viewer-container">
     <model-viewer 
         id="main-viewer" 
         camera-controls 
-        interaction-prompt="none"
         shadow-intensity="1" 
+        shadow-softness="1"
         exposure="1"
-        environment-image="neutral"
         src="">
     </model-viewer>
+    <div class="hud" id="hud-stats">GLTF Viewer v2.0</div>
 </div>
 
 <script type="module">
     const mv = document.querySelector('#main-viewer');
+    const keywords = ['Ceiling', 'Walls', 'Furniture'];
 
-    // Camera Navigation Function
-    window.setCamera = (orbit, target) => {
-        mv.cameraOrbit = orbit;
-        mv.cameraTarget = target;
-    };
+    // --- DISPLAY CONTROLS ---
+    document.getElementById('check-rotate').addEventListener('change', (e) => {
+        mv.autoRotate = e.target.checked;
+    });
 
-    // Lighting Controls
-    document.getElementById('input-exposure').oninput = (e) => mv.exposure = e.target.value;
-    document.getElementById('input-shadow').oninput = (e) => mv.shadowIntensity = e.target.value;
-    document.getElementById('check-rotate').onchange = (e) => mv.autoRotate = e.target.checked;
+    document.getElementById('check-skybox').addEventListener('change', (e) => {
+        // When skybox is on, the environment image becomes the background
+        mv.style.backgroundColor = e.target.checked ? 'transparent' : '#121212';
+        if (e.target.checked) mv.setAttribute('skybox-image', mv.getAttribute('environment-image'));
+        else mv.removeAttribute('skybox-image');
+    });
 
-    // File Loading
+    // --- LIGHTING ---
+    document.getElementById('input-exposure').addEventListener('input', (e) => mv.exposure = e.target.value);
+    document.getElementById('input-shadow').addEventListener('input', (e) => mv.shadowIntensity = e.target.value);
+    document.getElementById('select-env').addEventListener('change', (e) => {
+        mv.environmentImage = e.target.value === 'neutral' ? '' : e.target.value;
+    });
+
+    // --- FILE LOADING ---
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             mv.src = URL.createObjectURL(file);
-            // Dynamic fly-in effect on load
-            mv.addEventListener('load', () => {
-                setCamera('45deg 75deg 120%', 'auto auto auto');
-            }, { once: true });
+            document.getElementById('status').innerText = file.name;
         }
     };
 
-    // Layer Toggles
-    const updateLayers = () => {
-        if (!mv.model) return;
-        const layers = {
+    // --- VISIBILITY ---
+    const updateVisibility = () => {
+        const model = mv.model;
+        if (!model) return;
+        const states = {
             Ceiling: document.getElementById('toggle-Ceiling').checked,
             Walls: document.getElementById('toggle-Walls').checked,
-            Furniture: document.getElementById('toggle-Furniture').checked
+            Furniture: document.getElementById('toggle-Furniture').checked,
+            Others: document.getElementById('toggle-Others').checked
         };
-        mv.model.nodes.forEach(node => {
-            Object.keys(layers).forEach(key => {
+
+        model.nodes.forEach(node => {
+            let matched = false;
+            keywords.forEach(key => {
                 if (node.name.toLowerCase().includes(key.toLowerCase())) {
-                    node.visible = layers[key];
+                    node.visible = states[key];
+                    matched = true;
                 }
             });
+            if (!matched) node.visible = states.Others;
         });
     };
 
-    ['Ceiling', 'Walls', 'Furniture'].forEach(id => {
-        document.getElementById(`toggle-${id}`).onchange = updateLayers;
+    ['Ceiling', 'Walls', 'Furniture', 'Others'].forEach(id => {
+        document.getElementById(`toggle-${id}`).addEventListener('change', updateVisibility);
     });
 
-    mv.addEventListener('load', updateLayers);
+    mv.addEventListener('load', updateVisibility);
 </script>
 
 </body>
