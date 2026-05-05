@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile SKP/3D Viewer</title>
+    <!-- Google's 3D Viewer Component -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #1a1a1a; color: white; }
+        header { padding: 20px; text-align: center; background: #333; }
+        .upload-section { padding: 20px; text-align: center; border-bottom: 1px solid #444; }
+        #viewer-container { flex-grow: 1; position: relative; }
+        model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
+        .button { background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: inline-block; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>3D Mobile Viewer</h2>
+</header>
+
+<div class="upload-section">
+    <label class="button" for="file-upload">Upload 3D Model (.glb, .gltf)</label>
+    <input type="file" id="file-upload" accept=".glb,.gltf" />
+    <p style="font-size: 12px; color: #aaa;">Export your SketchUp file as .GLB for best mobile performance.</p>
+</div>
+
+<div id="viewer-container">
+    <!-- The 3D Player -->
+    <model-viewer id="mobile-view" 
+        camera-controls 
+        auto-rotate 
+        shadow-intensity="1" 
+        ar 
+        ar-modes="webxr scene-viewer quick-look"
+        touch-action="pan-y"
+        alt="A 3D model upload">
+        
+        <div slot="poster" style="display:flex; justify-content:center; align-items:center; height:100%;">
+            <p>Upload a model to begin</p>
+        </div>
+    </model-viewer>
+</div>
+
+<script>
+    const fileInput = document.getElementById('file-upload');
+    const modelViewer = document.querySelector('#mobile-view');
+
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            // Create a local URL for the uploaded file
+            const url = URL.createObjectURL(file);
+            modelViewer.src = url;
+            
+            // Cleanup memory when done
+            modelViewer.addEventListener('load', () => {
+                URL.revokeObjectURL(url);
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
