@@ -3,23 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local 3D Viewer</title>
-    <!-- Load the 3D viewer component from Google's CDN -->
+    <title>JH Professional 3D Viewer</title>
+    <!-- Model Viewer Component -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f0f0f0; display: flex; flex-direction: column; height: 100vh; }
-        #controls { padding: 15px; background: #fff; border-bottom: 1px solid #ddd; display: flex; gap: 20px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        #viewer-container { flex-grow: 1; position: relative; }
-        model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
-        .toggle-group { display: flex; gap: 15px; background: #eee; padding: 8px 15px; border-radius: 20px; }
-        label { font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-        input[type="file"] { font-size: 14px; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            background: #121212; 
+            color: white; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+        }
+
+        /* Top Controls Bar */
+        #controls { 
+            padding: 15px 25px; 
+            background: #1e1e1e; 
+            border-bottom: 1px solid #333; 
+            display: flex; 
+            gap: 25px; 
+            align-items: center; 
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #viewer-container { 
+            flex-grow: 1; 
+            background: radial-gradient(#2c2c2c, #000); 
+            position: relative;
+        }
+
+        /* The 3D Viewer Custom Styles */
+        model-viewer { 
+            width: 100%; 
+            height: 100%; 
+            /* Subtle Outline/Glow Effect */
+            filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
+        }
+
+        .toggle-group { 
+            display: flex; 
+            gap: 15px; 
+            background: #2a2a2a; 
+            padding: 10px 20px; 
+            border-radius: 30px; 
+            border: 1px solid #444;
+        }
+
+        label { 
+            font-size: 13px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="checkbox"] { cursor: pointer; }
+
+        .file-label {
+            background: #007bff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .file-label:hover { background: #0056b3; }
+        #file-input { display: none; }
+
+        #status { font-size: 12px; color: #888; }
     </style>
 </head>
 <body>
 
 <div id="controls">
-    <!-- Local file picker -->
+    <!-- Custom Upload Button -->
+    <label class="file-label" for="file-input">UPLOAD .GLB</label>
     <input type="file" id="file-input" accept=".glb">
     
     <div class="toggle-group">
@@ -28,29 +95,47 @@
         <label><input type="checkbox" checked id="toggle-Furniture"> Furniture</label>
         <label><input type="checkbox" checked id="toggle-Others"> Others</label>
     </div>
+
+    <span id="status">Ready</span>
 </div>
 
 <div id="viewer-container">
-    <model-viewer id="main-viewer" camera-controls shadow-intensity="1" src=""></model-viewer>
+    <!-- 
+        shadow-intensity: Adds the shadow (1.5 is strong)
+        shadow-softness: Makes shadow edges look natural
+        exposure: Adjusts brightness
+        environment-image: Required for realistic lighting/shadows
+    -->
+    <model-viewer 
+        id="main-viewer" 
+        camera-controls 
+        interaction-prompt="auto"
+        shadow-intensity="1.5" 
+        shadow-softness="1"
+        exposure="1.2"
+        environment-image="neutral"
+        src="">
+    </model-viewer>
 </div>
 
 <script type="module">
     const mv = document.querySelector('#main-viewer');
-    const primaryKeywords = ['Ceiling', 'Walls', 'Furniture'];
+    const status = document.getElementById('status');
+    const keywords = ['Ceiling', 'Walls', 'Furniture'];
 
-    // --- LOCAL LOAD LOGIC ---
+    // --- LOCAL FILE LOADING ---
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Create a local URL for the file on your computer
-        const localUrl = URL.createObjectURL(file);
+        status.innerText = "Loading " + file.name + "...";
         
-        // Load it into the viewer
+        // Creates a direct link to the file on your machine
+        const localUrl = URL.createObjectURL(file);
         mv.src = localUrl;
     };
 
-    // --- VISIBILITY LOGIC ---
+    // --- VISIBILITY TOGGLE LOGIC ---
     const updateVisibility = () => {
         const model = mv.model;
         if (!model) return;
@@ -62,31 +147,37 @@
             Others: document.getElementById('toggle-Others').checked
         };
 
+        // Loops through all parts (nodes) in the SketchUp file
         model.nodes.forEach(node => {
             let matched = false;
             
-            // Check if node belongs to a primary group
-            primaryKeywords.forEach(key => {
+            keywords.forEach(key => {
                 if (node.name.toLowerCase().includes(key.toLowerCase())) {
                     node.visible = states[key];
                     matched = true;
                 }
             });
 
-            // "Others" handles anything not matching the keywords
+            // If it's not a wall, ceiling, or furniture, it's "Others"
             if (!matched) {
                 node.visible = states.Others;
             }
         });
+        
+        status.innerText = "Model Active";
     };
 
-    // Listen for checkbox changes
+    // Attach events to checkboxes
     ['Ceiling', 'Walls', 'Furniture', 'Others'].forEach(id => {
         document.getElementById(`toggle-${id}`).addEventListener('change', updateVisibility);
     });
 
-    // Re-apply visibility when the model finishes loading
-    mv.addEventListener('load', updateVisibility);
+    // Re-run visibility check every time a new model finishes loading
+    mv.addEventListener('load', () => {
+        updateVisibility();
+        // Optional: Zoom to fit the model perfectly on load
+        mv.cameraTarget = "auto auto auto";
+    });
 </script>
 
 </body>
