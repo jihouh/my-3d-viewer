@@ -11,10 +11,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Inject Secrets
+      - name: Inject Secrets with Node
+        env:
+          # This pulls your secret into a safe environment variable
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG_JSON }}
         run: |
-          # This specifically targets the 'PAYLOAD_PLACEHOLDER' string inside quotes
-          sed -i "s|'PAYLOAD_PLACEHOLDER'|${{ secrets.FIREBASE_CONFIG_JSON }}|g" index.html
+          node -e "
+          const fs = require('fs');
+          const path = 'index.html';
+          let content = fs.readFileSync(path, 'utf8');
+          // This replaces the placeholder string with the actual JSON object
+          const updatedContent = content.replace('PAYLOAD_PLACEHOLDER', process.env.FIREBASE_CONFIG);
+          fs.writeFileSync(path, updatedContent);
+          "
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
