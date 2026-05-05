@@ -18,40 +18,64 @@
             background: rgba(25, 25, 25, 0.95); padding: 18px; 
             border-radius: 12px; border: 1px solid #444; 
             width: 200px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(10px);
         }
         .overlay-ui h4 { margin: 0 0 12px 0; color: #007bff; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
         
         .layer-toggle { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; cursor: pointer; justify-content: space-between; }
-        .layer-toggle input { cursor: pointer; width: 16px; height: 16px; }
-
         .btn { background: #007bff; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; font-weight: 600; font-size: 13px; }
         .btn-admin { background: #333; border: 1px solid #444; }
 
-        #status-msg { font-size: 11px; color: #888; margin-top: 10px; text-align: center; }
-        .measure-toast { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: #28a745; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: none; z-index: 1000; }
+        /* Admin Overlay */
+        .admin-panel { 
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); z-index: 200; overflow-y: auto; padding: 40px 20px; box-sizing: border-box;
+        }
+        .admin-content { max-width: 600px; margin: 0 auto; }
+        .model-card { 
+            background: #222; border: 1px solid #444; padding: 15px; border-radius: 8px; 
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; 
+        }
+
+        /* Success/Error Toast */
+        #toast { 
+            position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 8px; 
+            z-index: 300; display: none; font-weight: bold; animation: slideIn 0.3s ease-out;
+        }
+        .toast-success { background: #28a745; color: white; }
+        .toast-error { background: #dc3545; color: white; }
+
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- Main UI -->
     <div class="overlay-ui">
         <h4>Visibility Control</h4>
         <label class="layer-toggle">Ceiling <input type="checkbox" checked id="toggle-Ceiling"></label>
         <label class="layer-toggle">Walls <input type="checkbox" checked id="toggle-Walls"></label>
         <label class="layer-toggle">Furniture <input type="checkbox" checked id="toggle-Furniture"></label>
         <label class="layer-toggle">Others <input type="checkbox" checked id="toggle-Others"></label>
-        
         <hr style="border:0; border-top:1px solid #333; margin: 15px 0;">
-        
         <button class="btn" id="upload-btn">Upload .GLB</button>
-        <button class="btn btn-admin" id="admin-btn">Admin Panel</button>
+        <button class="btn btn-admin" id="admin-trigger">Admin Gallery</button>
         <input type="file" id="file-input" accept=".glb,.gltf" style="display:none">
-        
-        <div id="status-msg">Shift+Click to measure</div>
     </div>
 
-    <div id="measure-toast" class="measure-toast">Distance: <span id="dist-val">0</span>m</div>
+    <!-- Admin Panel Overlay -->
+    <div id="admin-panel" class="admin-panel">
+        <div class="admin-content">
+            <div style="display:flex; justify-content: space-between; margin-bottom: 20px;">
+                <h2>Saved Models</h2>
+                <button class="btn" style="width:auto;" id="close-admin">Close</button>
+            </div>
+            <div id="model-list">Loading gallery...</div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
 
     <div id="viewer-container">
         <model-viewer id="main-viewer" camera-controls ar shadow-intensity="1" src=""></model-viewer>
@@ -60,8 +84,8 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js";
-    import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-storage.js";
-    import { getDatabase, ref as dRef, push } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
+    import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-storage.js";
+    import { getDatabase, ref as dRef, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCIVKrIzXA0ZQH3NZFtHsErCioAPOvipWk",
@@ -78,14 +102,20 @@
     const db = getDatabase(app);
     const mv = document.querySelector('#main-viewer');
 
-    const primaryKeywords = ['Ceiling', 'Walls', 'Furniture'];
+    // --- TOAST NOTIFICATION ---
+    const showToast = (msg, type = 'success') => {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.className = type === 'success' ? 'toast-success' : 'toast-error';
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 4000);
+    };
 
-    // --- VISIBILITY CONTROLLER ---
+    // --- VISIBILITY CONTROL ---
     const updateVisibility = () => {
         const model = mv.model;
         if (!model) return;
-
-        // Get current states of all checkboxes
+        const keys = ['Ceiling', 'Walls', 'Furniture'];
         const states = {
             Ceiling: document.getElementById('toggle-Ceiling').checked,
             Walls: document.getElementById('toggle-Walls').checked,
@@ -95,33 +125,26 @@
 
         model.nodes.forEach(node => {
             let matched = false;
-            
-            // Check if node belongs to a primary group
-            primaryKeywords.forEach(key => {
-                if (node.name.toLowerCase().includes(key.toLowerCase())) {
-                    node.visible = states[key];
+            keys.forEach(k => {
+                if (node.name.toLowerCase().includes(k.toLowerCase())) {
+                    node.visible = states[k];
                     matched = true;
                 }
             });
-
-            // If it didn't match Ceiling/Walls/Furniture, it's "Others"
-            if (!matched) {
-                node.visible = states.Others;
-            }
+            if (!matched) node.visible = states.Others;
         });
     };
 
-    // Attach listeners to checkboxes
     ['Ceiling', 'Walls', 'Furniture', 'Others'].forEach(id => {
         document.getElementById(`toggle-${id}`).addEventListener('change', updateVisibility);
     });
 
-    // --- UPLOAD HANDLER ---
+    // --- UPLOAD ---
     document.getElementById('upload-btn').onclick = () => document.getElementById('file-input').click();
     document.getElementById('file-input').onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        document.getElementById('status-msg').innerText = "Uploading...";
+        showToast("Uploading model...", "success");
 
         try {
             const fileRef = sRef(storage, `models/${Date.now()}_${file.name}`);
@@ -130,38 +153,70 @@
             
             await push(dRef(db, 'models'), { name: file.name, url: url });
             mv.src = url;
-            document.getElementById('status-msg').innerText = "Upload Success!";
+            showToast("Upload Complete! View updated.");
         } catch (err) {
-            console.error(err);
-            document.getElementById('status-msg').innerText = "Upload Failed.";
+            showToast("Upload failed. Check Rules.", "error");
         }
     };
 
-    // --- MEASUREMENT TOOL ---
-    let points = [];
-    mv.addEventListener('click', (e) => {
-        if (!e.shiftKey) return;
-        const hit = mv.positionAndNormalFromPoint(e.clientX, e.clientY);
-        if (hit) {
-            points.push(hit.position);
-            if (points.length === 2) {
-                const d = Math.sqrt(
-                    Math.pow(points[0].x - points[1].x, 2) +
-                    Math.pow(points[0].y - points[1].y, 2) +
-                    Math.pow(points[0].z - points[1].z, 2)
-                );
-                const toast = document.getElementById('measure-toast');
-                document.getElementById('dist-val').innerText = d.toFixed(2);
-                toast.style.display = 'block';
-                setTimeout(() => { toast.style.display = 'none'; }, 4000);
-                points = [];
+    // --- ADMIN PANEL & GALLERY ---
+    document.getElementById('admin-trigger').onclick = () => {
+        const pass = prompt("Enter Admin Password:");
+        if (pass === "1234abcd#") {
+            document.getElementById('admin-panel').style.display = 'block';
+            loadGallery();
+        } else {
+            alert("Unauthorized.");
+        }
+    };
+
+    document.getElementById('close-admin').onclick = () => document.getElementById('admin-panel').style.display = 'none';
+
+    function loadGallery() {
+        const list = document.getElementById('model-list');
+        onValue(dRef(db, 'models'), (snapshot) => {
+            list.innerHTML = "";
+            if (!snapshot.exists()) {
+                list.innerHTML = "<p>No models found.</p>";
+                return;
+            }
+            snapshot.forEach((child) => {
+                const data = child.val();
+                const key = child.key;
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                card.innerHTML = `
+                    <span>${data.name}</span>
+                    <div>
+                        <button class="btn" style="width:auto; margin-right:5px;" onclick="window.switchModel('${data.url}')">Load</button>
+                        <button class="btn" style="width:auto; background:#d9534f;" onclick="window.deleteModel('${key}', '${data.name}')">Del</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        });
+    }
+
+    // Exported functions for the HTML buttons
+    window.switchModel = (url) => {
+        mv.src = url;
+        document.getElementById('admin-panel').style.display = 'none';
+        showToast("Model switched!");
+    };
+
+    window.deleteModel = async (key, name) => {
+        if(confirm(`Permanently delete ${name}?`)) {
+            try {
+                // Delete from DB first, storage second
+                await remove(dRef(db, 'models/' + key));
+                showToast("Deleted from list.");
+            } catch (e) {
+                showToast("Error deleting.", "error");
             }
         }
-    });
+    };
 
-    // Re-apply visibility when a new model finishes loading
     mv.addEventListener('load', updateVisibility);
-
 </script>
 </body>
 </html>
