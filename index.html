@@ -88,8 +88,7 @@
     import { getDatabase, ref as dRef, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
 
     const firebaseConfig = 'PAYLOAD_PLACEHOLDER';
-    
-    const app = initializeApp(firebaseConfig);
+        const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
     const db = getDatabase(app);
     const mv = document.querySelector('#main-viewer');
