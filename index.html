@@ -1,42 +1,167 @@
-<!-- Add this to your .overlay-ui section -->
-<label class="layer-toggle">Others <input type="checkbox" checked id="toggle-Others"></label>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JH Professional 3D Viewer</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #121212; color: white; overflow: hidden; }
+        .container { display: flex; flex-direction: column; height: 100vh; position: relative; }
+        #viewer-container { flex-grow: 1; background: radial-gradient(#333, #000); }
+        model-viewer { width: 100%; height: 100%; }
+
+        /* Floating UI Panel */
+        .overlay-ui { 
+            position: absolute; top: 15px; left: 15px; z-index: 100; 
+            background: rgba(25, 25, 25, 0.95); padding: 18px; 
+            border-radius: 12px; border: 1px solid #444; 
+            width: 200px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+        .overlay-ui h4 { margin: 0 0 12px 0; color: #007bff; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .layer-toggle { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; cursor: pointer; justify-content: space-between; }
+        .layer-toggle input { cursor: pointer; width: 16px; height: 16px; }
+
+        .btn { background: #007bff; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; font-weight: 600; font-size: 13px; }
+        .btn-admin { background: #333; border: 1px solid #444; }
+
+        #status-msg { font-size: 11px; color: #888; margin-top: 10px; text-align: center; }
+        .measure-toast { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: #28a745; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: none; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="overlay-ui">
+        <h4>Visibility Control</h4>
+        <label class="layer-toggle">Ceiling <input type="checkbox" checked id="toggle-Ceiling"></label>
+        <label class="layer-toggle">Walls <input type="checkbox" checked id="toggle-Walls"></label>
+        <label class="layer-toggle">Furniture <input type="checkbox" checked id="toggle-Furniture"></label>
+        <label class="layer-toggle">Others <input type="checkbox" checked id="toggle-Others"></label>
+        
+        <hr style="border:0; border-top:1px solid #333; margin: 15px 0;">
+        
+        <button class="btn" id="upload-btn">Upload .GLB</button>
+        <button class="btn btn-admin" id="admin-btn">Admin Panel</button>
+        <input type="file" id="file-input" accept=".glb,.gltf" style="display:none">
+        
+        <div id="status-msg">Shift+Click to measure</div>
+    </div>
+
+    <div id="measure-toast" class="measure-toast">Distance: <span id="dist-val">0</span>m</div>
+
+    <div id="viewer-container">
+        <model-viewer id="main-viewer" camera-controls ar shadow-intensity="1" src=""></model-viewer>
+    </div>
+</div>
 
 <script type="module">
-    // ... (Keep your existing Firebase imports and config)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js";
+    import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-storage.js";
+    import { getDatabase, ref as dRef, push } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
 
-    const modelViewer = document.querySelector('#main-viewer');
-    
-    // We'll store references to help with the "Others" logic
-    const primaryLayers = ['Ceiling', 'Walls', 'Furniture'];
+    const firebaseConfig = {
+        apiKey: "AIzaSyCIVKrIzXA0ZQH3NZFtHsErCioAPOvipWk",
+        authDomain: "jh-3d-viewer.firebaseapp.com",
+        databaseURL: "https://jh-3d-viewer-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "jh-3d-viewer",
+        storageBucket: "jh-3d-viewer.firebasestorage.app",
+        messagingSenderId: "591931878519",
+        appId: "1:591931878519:web:e2efab3a2d9a92b36c2a72"
+    };
 
-    const setupToggles = () => {
-        // Add "Others" to the loop
-        [...primaryLayers, 'Others'].forEach(layerName => {
-            const checkbox = document.getElementById(`toggle-${layerName}`);
+    const app = initializeApp(firebaseConfig);
+    const storage = getStorage(app);
+    const db = getDatabase(app);
+    const mv = document.querySelector('#main-viewer');
+
+    const primaryKeywords = ['Ceiling', 'Walls', 'Furniture'];
+
+    // --- VISIBILITY CONTROLLER ---
+    const updateVisibility = () => {
+        const model = mv.model;
+        if (!model) return;
+
+        // Get current states of all checkboxes
+        const states = {
+            Ceiling: document.getElementById('toggle-Ceiling').checked,
+            Walls: document.getElementById('toggle-Walls').checked,
+            Furniture: document.getElementById('toggle-Furniture').checked,
+            Others: document.getElementById('toggle-Others').checked
+        };
+
+        model.nodes.forEach(node => {
+            let matched = false;
             
-            checkbox.addEventListener('change', (e) => {
-                const isVisible = e.target.checked;
-                const model = modelViewer.model;
-                if (!model) return;
-
-                for (const node of model.nodes) {
-                    if (layerName === 'Others') {
-                        // "Others" logic: Hide if it DOES NOT match any primary layer name
-                        const isPrimary = primaryLayers.some(p => node.name.includes(p));
-                        if (!isPrimary) {
-                            node.visible = isVisible;
-                        }
-                    } else {
-                        // Standard logic: Hide if name matches
-                        if (node.name.includes(layerName)) {
-                            node.visible = isVisible;
-                        }
-                    }
+            // Check if node belongs to a primary group
+            primaryKeywords.forEach(key => {
+                if (node.name.toLowerCase().includes(key.toLowerCase())) {
+                    node.visible = states[key];
+                    matched = true;
                 }
             });
+
+            // If it didn't match Ceiling/Walls/Furniture, it's "Others"
+            if (!matched) {
+                node.visible = states.Others;
+            }
         });
     };
 
-    // Trigger this when the model finishes loading
-    modelViewer.addEventListener('load', setupToggles);
+    // Attach listeners to checkboxes
+    ['Ceiling', 'Walls', 'Furniture', 'Others'].forEach(id => {
+        document.getElementById(`toggle-${id}`).addEventListener('change', updateVisibility);
+    });
+
+    // --- UPLOAD HANDLER ---
+    document.getElementById('upload-btn').onclick = () => document.getElementById('file-input').click();
+    document.getElementById('file-input').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('status-msg').innerText = "Uploading...";
+
+        try {
+            const fileRef = sRef(storage, `models/${Date.now()}_${file.name}`);
+            const uploadTask = await uploadBytes(fileRef, file);
+            const url = await getDownloadURL(uploadTask.ref);
+            
+            await push(dRef(db, 'models'), { name: file.name, url: url });
+            mv.src = url;
+            document.getElementById('status-msg').innerText = "Upload Success!";
+        } catch (err) {
+            console.error(err);
+            document.getElementById('status-msg').innerText = "Upload Failed.";
+        }
+    };
+
+    // --- MEASUREMENT TOOL ---
+    let points = [];
+    mv.addEventListener('click', (e) => {
+        if (!e.shiftKey) return;
+        const hit = mv.positionAndNormalFromPoint(e.clientX, e.clientY);
+        if (hit) {
+            points.push(hit.position);
+            if (points.length === 2) {
+                const d = Math.sqrt(
+                    Math.pow(points[0].x - points[1].x, 2) +
+                    Math.pow(points[0].y - points[1].y, 2) +
+                    Math.pow(points[0].z - points[1].z, 2)
+                );
+                const toast = document.getElementById('measure-toast');
+                document.getElementById('dist-val').innerText = d.toFixed(2);
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 4000);
+                points = [];
+            }
+        }
+    });
+
+    // Re-apply visibility when a new model finishes loading
+    mv.addEventListener('load', updateVisibility);
+
 </script>
+</body>
+</html>
