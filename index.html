@@ -2,60 +2,98 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced 3D Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Design Viewer Pro | iPad & Tablet Optimized</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     
     <style>
         :root { --primary: #007bff; --bg: #121212; --panel: #1e1e1e; --border: #333; }
-        body { font-family: sans-serif; margin: 0; background: var(--bg); color: white; display: flex; height: 100vh; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: var(--bg); color: white; display: flex; height: 100vh; overflow: hidden; }
 
-        /* SIDEBAR PANEL */
+        /* SIDEBAR - Adaptive for iPad */
         #sidebar { 
-            width: 300px; background: var(--panel); border-right: 1px solid var(--border); 
-            display: flex; flex-direction: column; overflow-y: auto; padding: 20px; box-sizing: border-box;
+            width: 320px; background: var(--panel); border-right: 1px solid var(--border); 
+            display: flex; flex-direction: column; overflow-y: auto; padding: 25px; box-sizing: border-box;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 1000;
+            -webkit-overflow-scrolling: touch; /* Smooth iPad scrolling */
         }
 
-        #viewer-container { flex-grow: 1; position: relative; background: radial-gradient(#2c2c2c, #000); }
+        #viewer-container { flex-grow: 1; position: relative; background: radial-gradient(#2c2c2c, #000); touch-action: none; }
         model-viewer { width: 100%; height: 100%; }
 
-        /* UI ELEMENTS */
-        h3 { font-size: 14px; text-transform: uppercase; color: var(--primary); margin: 20px 0 10px; letter-spacing: 1px; }
-        .control-item { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        /* HEADERS & SPACING */
+        h3 { font-size: 13px; text-transform: uppercase; color: var(--primary); margin: 25px 0 12px; letter-spacing: 1.5px; opacity: 0.8; }
+        
+        /* TOUCH-FRIENDLY CONTROLS */
+        .control-item { 
+            margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; 
+            min-height: 44px; /* Apple's recommended minimum touch target */
+        }
         
         .file-btn { 
-            background: var(--primary); color: white; border: none; padding: 12px; 
-            border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px;
+            background: var(--primary); color: white; border: none; padding: 15px; 
+            border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 15px;
+            font-size: 14px;
         }
 
-        select, input[type="range"] { background: #333; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; width: 120px; }
-        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        select { background: #333; color: white; border: 1px solid #444; padding: 10px; border-radius: 6px; width: 120px; font-size: 14px; }
+        input[type="range"] { width: 110px; height: 20px; accent-color: var(--primary); }
+        input[type="checkbox"] { width: 24px; height: 24px; cursor: pointer; }
 
-        /* GRID/HUD */
-        .hud { position: absolute; bottom: 15px; left: 15px; font-size: 12px; color: #666; pointer-events: none; }
+        /* ADAPTIVE BREAKPOINTS */
+        @media (max-width: 1024px) { /* iPad Pro and below */
+            #sidebar {
+                position: absolute; left: 0; top: 0; bottom: 0;
+                transform: translateX(-100%);
+                box-shadow: 15px 0 30px rgba(0,0,0,0.6);
+            }
+            #sidebar.open { transform: translateX(0); }
+            #menu-trigger { display: block !important; }
+        }
+
+        /* OVERLAY UI */
+        #menu-trigger {
+            display: none; position: absolute; top: 20px; left: 20px; z-index: 1001;
+            background: var(--primary); color: white; border: none;
+            padding: 12px 20px; border-radius: 30px; font-weight: bold; font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .close-sidebar-btn {
+            background: #333; color: #888; border: 1px solid #444;
+            padding: 12px; border-radius: 8px; margin-bottom: 20px; cursor: pointer;
+            font-weight: bold; text-align: center; display: block;
+        }
+
+        .hud { position: absolute; bottom: 20px; left: 20px; font-size: 11px; color: #555; pointer-events: none; }
     </style>
 </head>
 <body>
 
-<div id="sidebar">
-    <input type="file" id="file-input" accept=".glb" style="display:none">
-    <button class="file-btn" onclick="document.getElementById('file-input').click()">SELECT MODEL</button>
-    
-    <div id="status" style="font-size: 11px; color: #888; text-align: center;">No model loaded</div>
+<button id="menu-trigger">PROJECT MENU</button>
 
-    <h3>Display</h3>
-    <div class="control-item">Auto-Rotate <input type="checkbox" id="check-rotate"></div>
-    <div class="control-item">Show Skybox <input type="checkbox" id="check-skybox"></div>
+<div id="sidebar">
+    <div class="close-sidebar-btn" id="close-sidebar">HIDE MENU</div>
     
-    <h3>Visibility Layers</h3>
+    <input type="file" id="file-input" accept=".glb" style="display:none">
+    <button class="file-btn" onclick="document.getElementById('file-input').click()">OPEN PROJECT</button>
+    
+    <div id="status" style="font-size: 12px; color: #666; text-align: center; margin-bottom: 10px;">Ready for display</div>
+
+    <h3>Presentation</h3>
+    <div class="control-item">Auto-Rotate <input type="checkbox" id="check-rotate"></div>
+    <div class="control-item">Fullscreen <button onclick="toggleFS()" style="background:#333; color:white; border:none; padding:8px 12px; border-radius:5px;">Toggle</button></div>
+    
+    <h3>Design Layers</h3>
     <div class="control-item">Ceiling <input type="checkbox" checked id="toggle-Ceiling"></div>
     <div class="control-item">Walls <input type="checkbox" checked id="toggle-Walls"></div>
     <div class="control-item">Furniture <input type="checkbox" checked id="toggle-Furniture"></div>
     <div class="control-item">Others <input type="checkbox" checked id="toggle-Others"></div>
 
-    <h3>Lighting</h3>
-    <div class="control-item">Exposure <input type="range" id="input-exposure" min="0" max="2" step="0.05" value="1"></div>
-    <div class="control-item">Shadows <input type="range" id="input-shadow" min="0" max="2" step="0.05" value="1"></div>
+    <h3>Ambiance</h3>
+    <div class="control-item">Brightness <input type="range" id="input-exposure" min="0" max="2" step="0.05" value="1"></div>
+    <div class="control-item">Shadow Depth <input type="range" id="input-shadow" min="0" max="2" step="0.05" value="1"></div>
     <div class="control-item">Environment
         <select id="select-env">
             <option value="neutral">Neutral</option>
@@ -74,53 +112,57 @@
         exposure="1"
         src="">
     </model-viewer>
-    <div class="hud" id="hud-stats">GLTF Viewer v2.0</div>
+    <div class="hud">Professional Design Viewer v3.0</div>
 </div>
 
 <script type="module">
     const mv = document.querySelector('#main-viewer');
+    const sidebar = document.getElementById('sidebar');
     const keywords = ['Ceiling', 'Walls', 'Furniture'];
 
-    // --- DISPLAY CONTROLS ---
-    document.getElementById('check-rotate').addEventListener('change', (e) => {
-        mv.autoRotate = e.target.checked;
-    });
+    // iPad Menu Toggles
+    document.getElementById('menu-trigger').onclick = () => sidebar.classList.add('open');
+    document.getElementById('close-sidebar').onclick = () => sidebar.classList.remove('open');
 
-    document.getElementById('check-skybox').addEventListener('change', (e) => {
-        // When skybox is on, the environment image becomes the background
-        mv.style.backgroundColor = e.target.checked ? 'transparent' : '#121212';
-        if (e.target.checked) mv.setAttribute('skybox-image', mv.getAttribute('environment-image'));
-        else mv.removeAttribute('skybox-image');
-    });
+    // Fullscreen for iPad (Note: iPadOS supports this in Safari)
+    window.toggleFS = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(e => {
+                alert("Fullscreen not supported on this browser version.");
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
 
-    // --- LIGHTING ---
-    document.getElementById('input-exposure').addEventListener('input', (e) => mv.exposure = e.target.value);
-    document.getElementById('input-shadow').addEventListener('input', (e) => mv.shadowIntensity = e.target.value);
-    document.getElementById('select-env').addEventListener('change', (e) => {
+    // Lighting/Display
+    document.getElementById('check-rotate').onchange = (e) => mv.autoRotate = e.target.checked;
+    document.getElementById('input-exposure').oninput = (e) => mv.exposure = e.target.value;
+    document.getElementById('input-shadow').oninput = (e) => mv.shadowIntensity = e.target.value;
+    document.getElementById('select-env').onchange = (e) => {
         mv.environmentImage = e.target.value === 'neutral' ? '' : e.target.value;
-    });
+    };
 
-    // --- FILE LOADING ---
+    // File Handling
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             mv.src = URL.createObjectURL(file);
             document.getElementById('status').innerText = file.name;
+            if (window.innerWidth <= 1024) sidebar.classList.remove('open');
         }
     };
 
-    // --- VISIBILITY ---
+    // Visibility
     const updateVisibility = () => {
-        const model = mv.model;
-        if (!model) return;
+        if (!mv.model) return;
         const states = {
             Ceiling: document.getElementById('toggle-Ceiling').checked,
             Walls: document.getElementById('toggle-Walls').checked,
             Furniture: document.getElementById('toggle-Furniture').checked,
             Others: document.getElementById('toggle-Others').checked
         };
-
-        model.nodes.forEach(node => {
+        mv.model.nodes.forEach(node => {
             let matched = false;
             keywords.forEach(key => {
                 if (node.name.toLowerCase().includes(key.toLowerCase())) {
@@ -133,7 +175,7 @@
     };
 
     ['Ceiling', 'Walls', 'Furniture', 'Others'].forEach(id => {
-        document.getElementById(`toggle-${id}`).addEventListener('change', updateVisibility);
+        document.getElementById(`toggle-${id}`).onchange = updateVisibility;
     });
 
     mv.addEventListener('load', updateVisibility);
