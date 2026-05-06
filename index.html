@@ -3,159 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Design Viewer Pro | iPad & Tablet Optimized</title>
+    <title>Professional Design Showcase</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     
     <style>
-        :root { --primary: #007bff; --bg: #121212; --panel: #1e1e1e; --border: #333; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: var(--bg); color: white; display: flex; height: 100vh; overflow: hidden; }
+        :root { --primary: #007bff; --bg: #0a0a0a; --panel: #161616; --border: #333; }
+        
+        /* Force full screen on all devices */
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; background: #000; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; }
 
-        /* SIDEBAR - Adaptive for iPad */
+        /* SIDEBAR - Fixed position for mobile/tablet stability */
         #sidebar { 
-            width: 320px; background: var(--panel); border-right: 1px solid var(--border); 
-            display: flex; flex-direction: column; overflow-y: auto; padding: 25px; box-sizing: border-box;
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            z-index: 1000;
-            -webkit-overflow-scrolling: touch; /* Smooth iPad scrolling */
+            width: 300px; height: 100%; background: var(--panel); border-right: 1px solid var(--border); 
+            display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
+            z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto; -webkit-overflow-scrolling: touch;
         }
 
-        #viewer-container { flex-grow: 1; position: relative; background: radial-gradient(#2c2c2c, #000); touch-action: none; }
-        model-viewer { width: 100%; height: 100%; }
-
-        /* HEADERS & SPACING */
-        h3 { font-size: 13px; text-transform: uppercase; color: var(--primary); margin: 25px 0 12px; letter-spacing: 1.5px; opacity: 0.8; }
-        
-        /* TOUCH-FRIENDLY CONTROLS */
-        .control-item { 
-            margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; 
-            min-height: 44px; /* Apple's recommended minimum touch target */
+        #viewer-container { 
+            flex-grow: 1; height: 100%; position: relative; 
+            background: radial-gradient(#2c2c2c, #000); z-index: 1; 
         }
         
-        .file-btn { 
-            background: var(--primary); color: white; border: none; padding: 15px; 
-            border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 15px;
-            font-size: 14px;
-        }
+        model-viewer { width: 100%; height: 100%; outline: none; }
 
-        select { background: #333; color: white; border: 1px solid #444; padding: 10px; border-radius: 6px; width: 120px; font-size: 14px; }
-        input[type="range"] { width: 110px; height: 20px; accent-color: var(--primary); }
-        input[type="checkbox"] { width: 24px; height: 24px; cursor: pointer; }
-
-        /* ADAPTIVE BREAKPOINTS */
-        @media (max-width: 1024px) { /* iPad Pro and below */
-            #sidebar {
-                position: absolute; left: 0; top: 0; bottom: 0;
-                transform: translateX(-100%);
-                box-shadow: 15px 0 30px rgba(0,0,0,0.6);
-            }
+        /* BREAKPOINTS */
+        @media (max-width: 1024px) {
+            #sidebar { position: fixed; left: 0; top: 0; transform: translateX(-100%); }
             #sidebar.open { transform: translateX(0); }
             #menu-trigger { display: block !important; }
         }
 
-        /* OVERLAY UI */
+        /* UI ELEMENTS */
         #menu-trigger {
-            display: none; position: absolute; top: 20px; left: 20px; z-index: 1001;
+            display: none; position: absolute; top: 20px; left: 20px; z-index: 1005;
             background: var(--primary); color: white; border: none;
-            padding: 12px 20px; border-radius: 30px; font-weight: bold; font-size: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            padding: 12px 24px; border-radius: 4px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        .close-sidebar-btn {
-            background: #333; color: #888; border: 1px solid #444;
-            padding: 12px; border-radius: 8px; margin-bottom: 20px; cursor: pointer;
-            font-weight: bold; text-align: center; display: block;
+        .close-btn { 
+            display: none; background: #333; color: white; border: none; 
+            padding: 12px; margin-bottom: 20px; border-radius: 4px; cursor: pointer; 
+        }
+        @media (max-width: 1024px) { .close-btn { display: block; } }
+
+        .file-btn { 
+            background: var(--primary); color: white; border: none; padding: 14px; 
+            border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 20px;
         }
 
-        .hud { position: absolute; bottom: 20px; left: 20px; font-size: 11px; color: #555; pointer-events: none; }
+        .control-item { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        h3 { font-size: 11px; text-transform: uppercase; color: var(--primary); margin: 25px 0 10px; letter-spacing: 1px; }
+        input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; }
+        input[type="range"] { accent-color: var(--primary); width: 100px; }
     </style>
 </head>
 <body>
 
-<button id="menu-trigger">PROJECT MENU</button>
+<button id="menu-trigger">☰ PROJECT MENU</button>
 
 <div id="sidebar">
-    <div class="close-sidebar-btn" id="close-sidebar">HIDE MENU</div>
+    <button class="close-btn" id="close-sidebar">✕ CLOSE MENU</button>
     
     <input type="file" id="file-input" accept=".glb" style="display:none">
-    <button class="file-btn" onclick="document.getElementById('file-input').click()">OPEN PROJECT</button>
+    <button class="file-btn" onclick="document.getElementById('file-input').click()">OPEN MODEL</button>
     
-    <div id="status" style="font-size: 12px; color: #666; text-align: center; margin-bottom: 10px;">Ready for display</div>
+    <div id="status" style="font-size: 11px; color: #666; text-align: center; margin-bottom: 15px;">Self-Service Viewer Active</div>
 
-    <h3>Presentation</h3>
     <div class="control-item">Auto-Rotate <input type="checkbox" id="check-rotate"></div>
-    <div class="control-item">Fullscreen <button onclick="toggleFS()" style="background:#333; color:white; border:none; padding:8px 12px; border-radius:5px;">Toggle</button></div>
-    
-    <h3>Design Layers</h3>
+
+    <h3>Layers</h3>
     <div class="control-item">Ceiling <input type="checkbox" checked id="toggle-Ceiling"></div>
     <div class="control-item">Walls <input type="checkbox" checked id="toggle-Walls"></div>
     <div class="control-item">Furniture <input type="checkbox" checked id="toggle-Furniture"></div>
     <div class="control-item">Others <input type="checkbox" checked id="toggle-Others"></div>
 
     <h3>Ambiance</h3>
-    <div class="control-item">Brightness <input type="range" id="input-exposure" min="0" max="2" step="0.05" value="1"></div>
-    <div class="control-item">Shadow Depth <input type="range" id="input-shadow" min="0" max="2" step="0.05" value="1"></div>
-    <div class="control-item">Environment
-        <select id="select-env">
-            <option value="neutral">Neutral</option>
-            <option value="legacy">Legacy</option>
-            <option value="soft">Soft</option>
-        </select>
-    </div>
+    <div class="control-item">Brightness <input type="range" id="input-exposure" min="0" max="2" step="0.1" value="1"></div>
+    <div class="control-item">Shadows <input type="range" id="input-shadow" min="0" max="2" step="0.1" value="1"></div>
+
+    <button class="file-btn" style="background:#222; margin-top:20px;" onclick="location.reload()">RESET VIEW</button>
 </div>
 
 <div id="viewer-container">
-    <model-viewer 
-        id="main-viewer" 
-        camera-controls 
-        shadow-intensity="1" 
-        shadow-softness="1"
-        exposure="1"
-        src="">
-    </model-viewer>
-    <div class="hud">Professional Design Viewer v3.0</div>
+    <model-viewer id="main-viewer" camera-controls shadow-intensity="1" exposure="1" src=""></model-viewer>
 </div>
 
-<script type="module">
+<script>
     const mv = document.querySelector('#main-viewer');
     const sidebar = document.getElementById('sidebar');
-    const keywords = ['Ceiling', 'Walls', 'Furniture'];
 
-    // iPad Menu Toggles
+    // Menu Controls
     document.getElementById('menu-trigger').onclick = () => sidebar.classList.add('open');
     document.getElementById('close-sidebar').onclick = () => sidebar.classList.remove('open');
 
-    // Fullscreen for iPad (Note: iPadOS supports this in Safari)
-    window.toggleFS = () => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(e => {
-                alert("Fullscreen not supported on this browser version.");
-            });
-        } else {
-            document.exitFullscreen();
-        }
-    };
-
-    // Lighting/Display
-    document.getElementById('check-rotate').onchange = (e) => mv.autoRotate = e.target.checked;
+    // Lighting
     document.getElementById('input-exposure').oninput = (e) => mv.exposure = e.target.value;
     document.getElementById('input-shadow').oninput = (e) => mv.shadowIntensity = e.target.value;
-    document.getElementById('select-env').onchange = (e) => {
-        mv.environmentImage = e.target.value === 'neutral' ? '' : e.target.value;
-    };
+    document.getElementById('check-rotate').onchange = (e) => mv.autoRotate = e.target.checked;
 
-    // File Handling
+    // File Selection
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
             mv.src = URL.createObjectURL(file);
-            document.getElementById('status').innerText = file.name;
+            document.getElementById('status').innerText = "Loaded: " + file.name;
             if (window.innerWidth <= 1024) sidebar.classList.remove('open');
         }
     };
 
-    // Visibility
+    // Layer Toggles
     const updateVisibility = () => {
         if (!mv.model) return;
+        const keys = ['Ceiling', 'Walls', 'Furniture'];
         const states = {
             Ceiling: document.getElementById('toggle-Ceiling').checked,
             Walls: document.getElementById('toggle-Walls').checked,
@@ -164,12 +126,7 @@
         };
         mv.model.nodes.forEach(node => {
             let matched = false;
-            keywords.forEach(key => {
-                if (node.name.toLowerCase().includes(key.toLowerCase())) {
-                    node.visible = states[key];
-                    matched = true;
-                }
-            });
+            keys.forEach(k => { if (node.name.toLowerCase().includes(k.toLowerCase())) { node.visible = states[k]; matched = true; } });
             if (!matched) node.visible = states.Others;
         });
     };
